@@ -326,7 +326,7 @@ class DWPlugin{
     <?php } ?>
     </div>
     
-    <h4 class="dw_toggle" style="cursor:pointer;"><?php _e('Pages') ?> +/-</h4>
+    <h4 class="dw_toggle" style="cursor:pointer;"><?php _e('Pages', 'display-widgets') ?> +/-</h4>
     <div class="dw_collapse">
     <?php 
       foreach ( $this->pages as $page ) { 
@@ -370,7 +370,7 @@ class DWPlugin{
     </div>
     <?php } ?>
     
-    <h4 class="dw_toggle" style="cursor:pointer;"><?php _e('Categories') ?> +/-</h4>
+    <h4 class="dw_toggle" style="cursor:pointer;"><?php _e('Categories', 'display-widgets') ?> +/-</h4>
     <div class="dw_collapse">
     <?php foreach ( $this->cats as $cat ) {
         $instance['cat-'. $cat->cat_ID] = isset($instance['cat-'. $cat->cat_ID]) ? $instance['cat-'. $cat->cat_ID] : false;   
