@@ -54,7 +54,7 @@ class DWPlugin{
         add_action('admin_footer', array(&$this, 'load_js'));
         
         // when a page is saved
-        add_action('save_post_page', array(&$this, 'delete_transient'));
+        add_action('save_post', array(&$this, 'delete_transient'));
         
         // when a new category/taxonomy is created
         add_action('created_term', array(&$this, 'delete_transient'));
