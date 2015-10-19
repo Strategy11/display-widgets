@@ -73,6 +73,10 @@ class DWPlugin{
 		add_filter( 'sidebars_widgets', array( &$this, 'sidebars_widgets' ) );
 	}
 
+	function get( &$var, $dflt=false ) { //NOTE: Works because $var passed by reference
+		return isset( $var ) ? $var : $dflt;
+	}
+
 	function show_widget( $instance ) {
 		$instance['dw_logged'] = self::show_logged( $instance );
         
@@ -83,108 +87,110 @@ class DWPlugin{
 				return false;
 			}
 		}
-        
+       
 		$post_id = get_queried_object_id();
 		$post_id = self::get_lang_id( $post_id, 'page' );
 
-		if ( is_home() ) {
-			$show = isset( $instance['page-home'] ) ? $instance['page-home'] : false;
-			if ( ! $show && $post_id ) {
-				$show = isset( $instance[ 'page-' . $post_id ] ) ? $instance[ 'page-' . $post_id ] : false;
+		$checked = false;
+		do {
+			if ( is_home() ) {
+				$checked = self::get( $instance['page-home'] );
+				if ( $checked ) break;
 			}
-            
-			// check if blog page is front page too
-			if ( ! $show && is_front_page() && isset( $instance['page-front'] ) ) {
-				$show = $instance['page-front'];
+			if ( is_front_page() ) {
+				$checked = self::get( $instance['page-front'] );
+				if ( $checked ) break;
 			}
-		} else if ( is_front_page() ) {
-			$show = isset( $instance['page-front'] ) ? $instance['page-front'] : false;
-			if ( ! $show && $post_id ) {
-				$show = isset( $instance[ 'page-' . $post_id ] ) ? $instance[ 'page-' . $post_id ] : false;
-			}
-		} else if ( is_category() ) {
-			$show = isset( $instance['cat-all'] ) ? $instance['cat-all'] : false;
+			if ( is_category() ) {
+				$checked = self::get( $instance['cat-all'] );
+				if ( $checked ) break;
 
-			if ( ! $show ) {
-				$show = isset( $instance['cat-' . get_query_var('cat') ] ) ? $instance[ 'cat-' . get_query_var('cat') ] : false;
+				$checked = self::get( $instance['cat-' . get_query_var('cat') ] );
+				if ( $checked ) break;
 			}
-		} else if ( is_tax() ) {
-			$term = get_queried_object();
-			$show = isset( $instance[ 'tax-' . $term->taxonomy ] ) ? $instance[ 'tax-'. $term->taxonomy] : false;
-			unset( $term );
-		} else if ( is_post_type_archive() ) {
-			global $wp_query;
-			$type = get_post_type();
-			$type = ($type === false) ? $wp_query->query['post_type'] : $type;
-			$show = isset( $instance[ 'type-' . $type . '-archive' ] ) ? $instance[ 'type-' . $type . '-archive' ] : false;
-		} else if ( is_archive() ) {
-			$show = isset( $instance['page-archive'] ) ? $instance['page-archive'] : false;
-		} else if ( is_single() ) {
-			$type = get_post_type();
-			if ( $type != 'page' && $type != 'post' ) {
-				$show = isset( $instance[ 'type-' . $type ] ) ? $instance[ 'type-' . $type ] : false;
+			if ( is_tax() ) {
+				$term = get_queried_object();
+				$checked = self::get( $instance[ 'tax-' . $term->taxonomy ] );
+				unset( $term ); //unset because its an object
+				if ( $checked ) break; //break after the unset
 			}
-
-			if ( ! isset( $show ) ) {
-				$show = isset( $instance['page-single'] ) ? $instance['page-single'] : false;
+			if ( is_post_type_archive() ) {
+				$type = get_post_type();
+				$checked = self::get( $instance[ 'type-' . $type . '-archive' ] );
+				if ( $checked ) break;
 			}
-
-			if ( ! $show ) {
-				$category_taxonomy = array( 'category' );
-				if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) && is_product() ) {
-				    $category_taxonomy[] = 'product_cat';
+			if ( is_archive() ) {
+				$checked = self::get( $instance['page-archive'] );
+				if ( $checked ) break;
+			}
+			if ( is_single() ) {
+				$type = get_post_type();
+				if ( $type != 'page' && $type != 'post' ) {
+					$checked = self::get( $instance[ 'type-' . $type ] );
 				}
-				$cats = get_the_category( array(
-					'taxonomy' => $category_taxonomy,
-				) );
+				if ( $checked ) break;
 
+				$checked = self::get( $instance['page-single'] );
+				if ( $checked ) break;
+
+				$cats = get_the_category();
 				foreach ( $cats as $cat ) {
-					if ( $show ) {
-						break;
-					}
 					$c_id = self::get_lang_id( $cat->cat_ID, 'category' );
-					if ( isset( $instance[ 'cat-' . $c_id ] ) ) {
-						$show = $instance[ 'cat-' . $c_id ];
-					}
+					$checked = self::get( $instance[ 'cat-' . $c_id ] );
 					unset( $c_id, $cat );
+					if ( $checked ) break; //exit the inner loop after the unset
+				}
+				if ( $checked ) break;
+
+			}
+			if ( is_404() ) {
+				$checked = self::get( $instance['page-404'] );
+				if ( $checked ) break;
+			}
+			if ( is_search() ) {
+				$checked = self::get( $instance['page-search'] );
+				if ( $checked ) break;
+			}
+			if ( $post_id && empty(get_query_var('cat'))) { //NOTE: post_id is the category_id on category pages, lets not filter that
+				$checked = self::get( $instance[ 'page-' . $post_id ] );
+				if ( $checked ) break;
+
+				if ( isset( $instance['other_ids'] ) && ! empty( $instance['other_ids'] ) ) {
+					$other_ids = explode( ',', $instance['other_ids'] );
+					foreach ( $other_ids as $other_id ) {
+						if ( $post_id == (int) $other_id ) {
+							$checked = true;
+							break; //exit the inner loop
+						}
+					}
+					if ( $checked ) break;
 				}
 			}
-            
-		} else if ( is_404() ) {
-			$show = isset( $instance['page-404'] ) ? $instance['page-404'] : false;
-		} else if ( is_search() ) {
-			$show = isset( $instance['page-search'] ) ? $instance['page-search'] : false;
-		} else if ( $post_id ) {
-			$show = isset( $instance[ 'page-' . $post_id ] ) ? $instance[ 'page-' . $post_id ] : false;
-		} else {
-			$show = false;
-		}
 
-		if ( $post_id && ! $show && isset( $instance['other_ids'] ) && ! empty( $instance['other_ids'] ) ) {
-			$other_ids = explode( ',', $instance['other_ids'] );
-			foreach ( $other_ids as $other_id ) {
-				if ( $post_id == (int) $other_id ) {
-					$show = true;
-				}
-			}
-		}
-
-		$show = apply_filters( 'dw_instance_visibility', $show, $instance );
 	
-		if ( ! $show && defined( 'ICL_LANGUAGE_CODE' ) ) {
+			//TODO: is there a reason this has to be AFTER apply_filters() ?
+        	        if ( defined( 'ICL_LANGUAGE_CODE' ) ) {
 			// check for WPML widgets
-			$show = isset( $instance[ 'lang-' . ICL_LANGUAGE_CODE ] ) ? $instance[ 'lang-' . ICL_LANGUAGE_CODE ] : false;
-		}
+				$checked = self::get( $instance[ 'lang-' . ICL_LANGUAGE_CODE ] );
+			}
 
-		if ( ! isset( $show ) ) {
-			$show = false;
-		}
+			break; //break no matter what
 
+		} while (true); //simplier way to exit out of that control block once we've found a match
+
+		$checked = apply_filters( 'dw_instance_visibility', $checked, $instance ); //custom hook for themes/plugins to modify behavior
+
+		//this is the 'hide on checked pages' vs 'show on checked pages' dropdown
+		//defaults to hide
 		$instance['dw_include'] = isset( $instance['dw_include'] ) ? $instance['dw_include'] : 0;
         
-		if ( ( $instance['dw_include'] && false == $show ) || ( 0 == $instance['dw_include'] && $show ) ) {
+		if (
+			( 1 == $instance['dw_include'] && false == $checked ) || 
+			( 0 == $instance['dw_include'] && true  == $checked ) 
+		   ) {
 			return false;
-		} else if ( defined('ICL_LANGUAGE_CODE') && $instance['dw_include'] && $show && ! isset( $instance[ 'lang-' . ICL_LANGUAGE_CODE ] ) ) {
+		} 
+		else if ( defined('ICL_LANGUAGE_CODE') && $instance['dw_include'] && $checked && ! isset( $instance[ 'lang-' . ICL_LANGUAGE_CODE ] ) ) {
 			//if the widget has to be visible here, but the current language has not been checked, return false
 			return false;
 		}
@@ -316,6 +322,8 @@ class DWPlugin{
 		$instance['dw_logged'] = self::show_logged( $instance );
 		$instance['other_ids'] = isset( $instance['other_ids'] ) ? $instance['other_ids'] : '';
 ?>   
+    ---&gt;&gt;&gt;<span class="dw_toggle">Toggle Display Widgets Options</span>&lt;&lt;&lt;---
+    <div class="dw_collapse"> <!-- extra options section -->
     <p>
         <label for="<?php echo esc_attr( $widget->get_field_id('dw_include') ); ?>"><?php _e( 'Show Widget for:', 'display-widgets' ) ?></label>
         <select name="<?php echo esc_attr( $widget->get_field_name('dw_logged') ); ?>" id="<?php echo esc_attr( $widget->get_field_id('dw_logged') ); ?>" class="widefat">
@@ -374,7 +382,7 @@ class DWPlugin{
 			unset( $post_key, $custom_post );
         } ?>
     </div>
-    
+    <?php // TODO: Change so that if any particular section has no members you can tell and are not surprised when it doesn't expand from collapsed state, maybe easier in javascript? ?>
     <h4 class="dw_toggle" style="cursor:pointer;"><?php _e( 'Custom Post Type Archives', 'display-widgets' ) ?> +/-</h4>
     <div class="dw_collapse">
 	<?php
@@ -387,9 +395,10 @@ class DWPlugin{
     ?>
 		<p><input class="checkbox" type="checkbox" <?php checked( $instance[ 'type-' . $post_key . '-archive' ], true ); ?> id="<?php echo esc_attr( $widget->get_field_id( 'type-'. $post_key . '-archive' ) ); ?>" name="<?php echo esc_attr( $widget->get_field_name( 'type-' . $post_key . '-archive' ) ); ?>" />
 		<label for="<?php echo esc_attr( $widget->get_field_id( 'type-' . $post_key . '-archive' ) ); ?>"><?php echo stripslashes( $custom_post->labels->name ) ?> <?php _e( 'Archive', 'display-widgets' ) ?></label></p>
-    <?php } ?>
+    		<?php 
+		} ?>
     </div>
-    <?php } ?>
+    <?php } // END empty( $this->cposts ) ?>
     
     <h4 class="dw_toggle" style="cursor:pointer;"><?php _e( 'Categories') ?> +/-</h4>
     <div class="dw_collapse">
@@ -588,6 +597,20 @@ function dw_show_opts(e){
 function dw_toggle(){jQuery(this).next('.dw_collapse').toggle();}
 /*]]>*/
 </script>
+<style type="text/css">
+.dw_collapse { /* hide the whole plugin additional section and EACH sub section by default */
+   display: none;
+}
+span.dw_toggle { /* styling for the hide whole plugin button */
+   color: #0074a2;
+   line-height: 24px;
+   text-decoration: underline;
+   cursor: pointer;
+}
+span.dw_toggle:hover {
+   color: red;
+}
+</style>
 <?php
     }
     
@@ -650,7 +673,7 @@ function dw_toggle(){jQuery(this).next('.dw_collapse').toggle();}
 			    $category_taxonomy[] = 'product_cat';
 			}
 			$this->cats = get_categories( array(
-				'hide_empty' => false,
+				'hide_empty'    => false,
 				'taxonomy'   => $category_taxonomy,
 				//'fields'        => 'id=>name', //added in 3.8
 			) );
