@@ -136,6 +136,9 @@ class DWPlugin{
 					unset( $c_id, $cat );
 				}
 			}
+			if ( ! $show && $post_id ) {
+				$show = isset( $instance[ 'page-' . $post_id ] ) ? $instance[ 'page-' . $post_id ] : false;
+			}
             
 		} else if ( is_404() ) {
 			$show = isset( $instance['page-404'] ) ? $instance['page-404'] : false;
