@@ -40,7 +40,7 @@ class DWPlugin{
 	var $langs = array();
     
 	function __construct(){
-		add_filter( 'widget_display_callback', array( &$this, 'show_widget' ) );
+		add_filter( 'widget_display_callback', array( &$this, 'show_widget' ), 10 );
         
 		// change the hook that triggers widget check
 		$hook = apply_filters( 'dw_callback_trigger', 'wp_loaded' );
