@@ -147,6 +147,20 @@ class DWPlugin{
 					unset( $c_id, $cat );
 				}
 			}
+			
+			if ( ! $show ) {
+				$taxes = get_object_taxonomies( $type );
+				foreach ( $taxes as $tax ){
+					$terms = wp_get_post_terms( $post_id, $tax );
+					foreach ( $terms as $key=>$term_obj ){
+						$term = $term_obj->term_id;
+						$show = isset( $instance[ 'term-' . $term ] ) ? $instance[ 'term-' . $term ] : false;
+						unset( $term );
+					}
+					unset( $terms );
+				}
+				unset( $taxes );
+			}			
             
 		} else if ( is_404() ) {
 			$show = isset( $instance['page-404'] ) ? $instance['page-404'] : false;
@@ -273,7 +287,7 @@ class DWPlugin{
 			continue;
 		}
             
-		if ( strpos( $k, 'page-' ) === 0 || strpos( $k, 'type-' ) === 0 || strpos( $k, 'cat-' ) === 0 || strpos( $k, 'tax-' ) === 0 || strpos( $k, 'lang-' ) === 0 ) {
+		if ( strpos( $k, 'page-' ) === 0 || strpos( $k, 'type-' ) === 0 || strpos( $k, 'cat-' ) === 0 || strpos( $k, 'tax-' ) === 0 || strpos( $k, 'lang-' ) === 0 || strpos( $k, 'term-' ) === 0 ) {
     ?>
 	<input type="hidden" id="<?php echo esc_attr( $widget->get_field_id( $k ) ); ?>" name="<?php echo esc_attr( $widget->get_field_name( $k ) ); ?>" value="<?php echo esc_attr( $v ) ?>"  />
     <?php
@@ -419,6 +433,29 @@ class DWPlugin{
     </div>
     <?php } ?>
     
+    <?php if ( ! empty( $this->terms ) ) { ?>
+
+	    <?php
+			foreach ( $this->terms as $tax => $term_arr ) {
+	    ?>
+		    <h4 class="dw_toggle" style="cursor:pointer;"><?php echo $tax ?> +/-</h4>
+		    <div class="dw_collapse">
+		    <?php
+				foreach ( $term_arr as $key => $term_obj ) {
+					$term = $term_obj->term_id;
+		        	$instance[ 'term-' . $term ] = isset( $instance[ 'term-' . $term ] ) ? $instance[ 'term-' . $term ] : false;
+		    ?>        
+				<p><input class="checkbox" type="checkbox" <?php checked( $instance['term-'. $term], true ); ?> id="<?php echo esc_attr( $widget->get_field_id('term-'. $term) ); ?>" name="<?php echo esc_attr( $widget->get_field_name('term-'. $term) ); ?>" />
+				<label for="<?php echo esc_attr( $widget->get_field_id('term-'. $term) ); ?>"><?php echo str_replace( array( '_','-' ), ' ', ucfirst( $term_obj->name ) ) ?></label></p>
+		    	<?php
+					unset( $key );
+				}?>
+			</div>
+			<?php unset( $tax );
+			}
+	    ?>
+    <?php } ?>     
+    
     <?php if ( ! empty( $this->langs ) ) { ?>
     <h4 class="dw_toggle" style="cursor:pointer;"><?php _e( 'Languages', 'display-widgets' ) ?> +/-</h4>
     <div class="dw_collapse">
@@ -507,7 +544,22 @@ class DWPlugin{
 				unset( $tax );
 			}
 		}
-
+		
+		if ( ! empty( $this->terms ) ) {
+			foreach ( $this->terms as $tax => $term_arr ) {
+				foreach ($term_arr as $key => $term_obj){
+					$term = $term_obj->term_id;
+					if ( isset( $new_instance[ 'term-' . $term ] ) ) {
+						$instance['term-'. $term] = 1;
+					} else if ( isset( $instance[ 'term-' . $term ] ) ) {
+						unset( $instance[ 'term-' . $term ] );
+					}
+					unset( $term );
+				}
+				unset( $tax );
+			}
+		}	
+		
 		if ( ! empty( $this->langs ) ) {
 			foreach ( $this->langs as $lang ) {
 				if ( isset( $new_instance[ 'lang-' . $lang['language_code'] ] ) ) {
@@ -675,6 +727,10 @@ function dw_toggle(){jQuery(this).next('.dw_collapse').toggle();}
 					}
                     
 					$this->taxes[ $post_tax ] = $name;
+					
+					if ( !empty( get_terms( $post_tax ) ) ){
+						$this->terms[ $name ] = get_terms( $post_tax );
+					}					
 				}
 			}
 		}
@@ -689,6 +745,7 @@ function dw_toggle(){jQuery(this).next('.dw_collapse').toggle();}
 			'cats'      => $this->cats,
 			'cposts'    => $this->cposts,
 			'taxes'     => $this->taxes,
+			'terms'     => $this->terms,
 		), 60*60*24*7 );
 
 		if ( empty( $this->checked ) ) {
