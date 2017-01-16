@@ -117,15 +117,9 @@ class DWPlugin{
 			$show = isset( $instance[ 'type-' . $type->name . '-archive' ] ) ? $instance[ 'type-' . $type->name . '-archive' ] : false;
 		} else if ( is_archive() ) {
 			$show = isset( $instance['page-archive'] ) ? $instance['page-archive'] : false;
-		} else if ( is_single() ) {
+		} else if ( is_singular() ) {
 			$type = get_post_type();
-			if ( $type != 'page' && $type != 'post' ) {
-				$show = isset( $instance[ 'type-' . $type ] ) ? $instance[ 'type-' . $type ] : false;
-			}
-
-			if ( ! isset( $show ) ) {
-				$show = isset( $instance['page-single'] ) ? $instance['page-single'] : false;
-			}
+			$show = isset( $instance[ 'type-' . $type ] ) ? $instance[ 'type-' . $type ] : false;
 
 			if ( ! $show ) {
 				$category_taxonomy = array( 'category' );
@@ -146,6 +140,9 @@ class DWPlugin{
 					}
 					unset( $c_id, $cat );
 				}
+			}
+			if ( ! $show && $post_id ) {
+				$show = isset( $instance[ 'page-' . $post_id ] ) ? $instance[ 'page-' . $post_id ] : false;
 			}
             
 		} else if ( is_404() ) {
@@ -357,7 +354,7 @@ class DWPlugin{
     </div>
     
     <?php if ( ! empty( $this->cposts ) ) { ?>
-    <h4 class="dw_toggle" style="cursor:pointer;"><?php _e( 'Custom Post Types', 'display-widgets' ) ?> +/-</h4>
+    <h4 class="dw_toggle" style="cursor:pointer;"><?php _e( 'Post Types', 'display-widgets' ) ?> +/-</h4>
     <div class="dw_collapse">
     <?php
 		foreach ( $this->cposts as $post_key => $custom_post ) {
@@ -607,7 +604,6 @@ function dw_toggle(){jQuery(this).next('.dw_collapse').toggle();}
             'front'     => __( 'Front', 'display-widgets' ),
             'home'      => __( 'Blog', 'display-widgets' ),
             'archive'   => __( 'Archives'),
-            'single'    => __( 'Single Post'),
             '404'       => '404',
             'search'    => __( 'Search'),
         );
